@@ -1,0 +1,23 @@
+stages:
+  - build
+  - scan
+
+variables:
+  DOCKER_IMAGE_NAME: "nextjs-app"
+
+build-image:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+  script:
+    - docker build -t $DOCKER_IMAGE_NAME .
+
+scan-vulnerabilities:
+  stage: scan
+  image: aquasec/trivy:latest
+  script:
+    - trivy image $DOCKER_IMAGE_NAME

@@ -1,13 +1,13 @@
-// Ensure this component is a Client Component to use hooks like useState, useEffect
-"use client"; 
+"use client";
 
 import { useState, useEffect, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, ListFilter, Loader2 } from 'lucide-react';
 import TaskList from '@/components/tasks/TaskList';
 import TaskForm from '@/components/tasks/TaskForm';
 import type { Task } from '@/lib/types';
-import { getTasks } from '@/actions/task.actions'; // Server action
+import { getTasks } from '@/actions/task.actions';
 import { useAuth } from '@/context/AuthContext';
 import {
   DropdownMenu,
@@ -16,27 +16,35 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 
 type FilterStatus = "all" | "pending" | "completed";
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const { user, loading } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | undefined>(undefined);
   const [filter, setFilter] = useState<FilterStatus>("all");
-  const [isPending, startTransition] = useTransition(); // For fetch transition
+  const [isPending, startTransition] = useTransition();
 
-  const { user } = useAuth();
+  // Rediriger vers /login seulement après la fin du chargement
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login");
+    }
+  }, [user, loading, router]);
 
+  // Charger les tâches seulement quand l'utilisateur est dispo
   const fetchTasks = () => {
     if (!user) return;
-    setIsLoading(true); // Set loading true at the start of fetch
+    setIsLoading(true);
     setError(null);
     startTransition(async () => {
-      const result = await getTasks(); // Call the server action
+      const result = await getTasks();
       if (result.error) {
         setError(result.error);
         setTasks([]);
@@ -51,7 +59,7 @@ export default function DashboardPage() {
     if (user) {
       fetchTasks();
     }
-  }, [user]); // Refetch when user changes (e.g., login/logout)
+  }, [user]);
 
   const handleOpenNewTaskForm = () => {
     setEditingTask(undefined);
@@ -64,7 +72,7 @@ export default function DashboardPage() {
   };
 
   const handleTaskMutated = () => {
-    fetchTasks(); // Re-fetch tasks after mutation
+    fetchTasks();
   };
 
   const filteredTasks = tasks.filter(task => {
@@ -72,6 +80,15 @@ export default function DashboardPage() {
     if (filter === "completed") return task.completed;
     return true;
   });
+
+  if (loading || !user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="animate-spin w-10 h-10 text-primary" />
+        <span className="ml-4 text-muted-foreground">Chargement du tableau de bord...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-2">
@@ -81,7 +98,7 @@ export default function DashboardPage() {
           <p className="text-muted-foreground">View and manage your daily tasks efficiently.</p>
         </div>
         <div className="flex gap-2 items-center">
-           <DropdownMenu>
+          <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="shrink-0">
                 <ListFilter className="mr-2 h-4 w-4" />
